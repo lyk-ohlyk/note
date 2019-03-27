@@ -1,10 +1,10 @@
 《Effective Modern C++》笔记。
-仅供个人学习
+仅供个人学习  
 请lyk坚持记录
 
-# Deducing Types 类型推断
+# Deducing Types (类型推断)
 ## Item 1: 理解模板类型推断
-### 1)模板函数声明中的类型
+### 1) 模板函数声明中的类型
 ```c++
 template<typename T>
 void f(ParamType param);
@@ -40,6 +40,7 @@ f(27); // 27 is rvalue, so T is int,
 			 // param's type is therefore int&&
 ```
 在《C++ Primer》16.2.5中介绍了这种情况：“当我们将一个左值传递给函数的优质引用参数，且此右值引用指向模板类型参数（如T&&）时，编译器推断模板类型参数为实参的左值引用类型。”因此f(x)中T为int&， f(cx)中T为const int&。同时，“我们不能（直接）定义一个引用的引用”，这时有另外的一个规则，叫**引用折叠**
+
 **引用折叠**
 * X& &、X& &&和X&& &都折叠成类型X&
 * 类型X&& &&折叠成X&&
@@ -124,11 +125,11 @@ const auto cx = x; // case 3 (cx isn't either)
 const auto& rx = x; // case 1 (rx is a non-universal ref.)
 
 auto&& uref1 = x; // x is int and lvalue,
-									// so uref1's type is int&
+                  // so uref1's type is int&
 auto&& uref2 = cx; // cx is const int and lvalue,
-									 // so uref2's type is const int&
+                   // so uref2's type is const int&
 auto&& uref3 = 27; // 27 is int and rvalue,
-									 // so uref3's type is int&&
+                   // so uref3's type is int&&
 ```
 
 同样的，对于数组、函数，也有引用和非引用的区别
@@ -139,7 +140,7 @@ auto arr1 = name;   // arr1's type is const char*
 auto& arr2 = name;  // arr2's type is const char (&)[13]
 
 void someFunc(int, double); // someFunc is a function;
-														// type is void(int, double)
+                            // type is void(int, double)
 auto func1 = someFunc; // func1's type is void (*)(int, double)
 auto& func2 = someFunc; // func2's type is void (&)(int, double)
 ```
@@ -152,10 +153,10 @@ auto y = {27}; // type is std::initializer_list<int>
 这也是auto和模板类型推断会不同的唯一地方：
 ```c++
 auto x = { 11, 23, 9 }; // x's type is
-												// std::initializer_list<int>
+                        // std::initializer_list<int>
 template<typename T> // template with parameter
 void f(T param);  // declaration equivalent to
-								  // x's declaration
+                  // x's declaration
 f({ 11, 23, 9 }); // error! can't deduce type for T
 ```
 只能像下面这样用模板推断initializer_list:
@@ -163,14 +164,14 @@ f({ 11, 23, 9 }); // error! can't deduce type for T
 template<typename T>
 void f(std::initializer_list<T> initList);
 f({ 11, 23, 9 }); // T deduced as int, and initList's
-									// type is std::initializer_list<int>
+                  // type is std::initializer_list<int>
 ```
 另外，C++14允许使用auto来推断函数返回类型或lambda函数参数，但这种用法是使用的模板类型推断，而不是auto的。因此，若返回的是初始化列表并不能编译：
 ```c++
 auto createInitList()
 {
 return { 1, 2, 3 }; // error: can't deduce type
-} 								  // for { 1, 2, 3 }
+}                   // for { 1, 2, 3 }
 
 auto resetV = [&v](const auto& newValue) { v = newValue; }; // C++14
 resetV({ 1, 2, 3 }); // error! can't deduce type for { 1, 2, 3 }
@@ -182,12 +183,13 @@ izer_list, and template type deduction doesn’t.
 * auto in a function return type or a lambda parameter implies template type
 deduction, not auto type deduction.
 
-###理解decltype
+### 3) 理解decltype
+
 先来一些no surprise的例子
 ```c++
 const int i = 0;         // decltype(i) is const int
 bool f(const Widget& w); // decltype(w) is const Widget&
-												 // decltype(f) is bool(const Widget&)
+                         // decltype(f) is bool(const Widget&)
 struct Point {
 	int x, y;              // decltype(Point::x) is int
 };                       // decltype(Point::y) is int
@@ -210,7 +212,7 @@ if (v[0] == 0) …         // decltype(v[0]) is int&
 ```c++
 template<typename Container, typename Index> // works, but
 auto authAndAccess(Container& c, Index i)    // requires
--> decltype(c[i]) 													 // refinement
+-> decltype(c[i])                            // refinement
 {
 	authenticateUser();
 	return c[i];
