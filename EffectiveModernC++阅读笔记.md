@@ -47,10 +47,10 @@ f(27); // 27 is rvalue, so T is int,
 
 在《C++ Primer》16.2.5中介绍了这种情况：“当我们将一个左值传递给函数的优质引用参数，且此右值引用指向模板类型参数（如T&&）时，编译器推断模板类型参数为实参的左值引用类型。”因此f(x)中T为int&， f(cx)中T为const int&。同时，“我们不能（直接）定义一个引用的引用”，这时有另外的一个规则，叫**引用折叠**
 ```
-引用折叠
+引用折叠:
 * X& &、X& &&和X&& &都折叠成类型X&
 * 类型X&& &&折叠成X&&
-* 当传入的是左值时，类型推断会推向左值引用；若传入的是右值才推为右值引用。**
+* 当传入的是左值时，类型推断会推向左值引用；若传入的是右值才推为右值引用。
 ```
 
 ParamType 是值，T
@@ -260,8 +260,8 @@ const Widget& cw = w;
 auto myWidget1 = cw; // auto type deduction:
                      // myWidget1's type is Widget
 decltype(auto) myWidget2 = cw; // decltype type deduction:
-															 // myWidget2's type is
-															 // const Widget&
+                               // myWidget2's type is
+                               // const Widget&
 ```
 
 decltype 的surprise出现在右值容器上。用户可能只想得到临时容器中的拷贝，如：
