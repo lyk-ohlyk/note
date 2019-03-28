@@ -1,11 +1,11 @@
-《Effective Modern C++》笔记。
+《Effective Modern C++》笔记。  
 仅供个人学习  
 请lyk坚持记录
 
 * [一，Deducing Types (类型推断)](#DeducingTypes)  
-	-[Item 1: 理解模板类型推断](##Item1理解模板类型推断)
-	-[Item 2: auto语句中的类型推断](##2auto语句中的类型推断)
-	-[Item 3: 理解decltype](##Item3理解decltype)
+	-[Item 1: 理解模板类型推断](#Item1理解模板类型推断)  
+	-[Item 2: auto语句中的类型推断](##2auto语句中的类型推断)  
+	-[Item 3: 理解decltype](##Item3理解decltype)  
 
 # Deducing Types (类型推断)
 ## Item 1: 理解模板类型推断
@@ -246,9 +246,9 @@ authAndAccess(d, 5) = 10; // authenticate user, return d[5],
 C++14可以decltype(auto)来实现返回与c[i]一致的类型：
 ```c++
 template<typename Container, typename Index> // C++14; works,
-decltype(auto) 															 // but still
-authAndAccess(Container& c, Index i) 				 // requires
-{ 																					 // refinement
+decltype(auto)                               // but still
+authAndAccess(Container& c, Index i)         // requires
+{                                            // refinement
 authenticateUser();
 return c[i];
 }
