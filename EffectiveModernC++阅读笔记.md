@@ -2,9 +2,14 @@
 仅供个人学习  
 请lyk坚持记录
 
+* [一，Deducing Types (类型推断)](#DeducingTypes)  
+	-[Item 1: 理解模板类型推断](##Item1理解模板类型推断)
+	-[Item 2: auto语句中的类型推断](##2auto语句中的类型推断)
+	-[Item 3: 理解decltype](##Item3理解decltype)
+
 # Deducing Types (类型推断)
 ## Item 1: 理解模板类型推断
-### 1) 模板函数声明中的类型
+**模板函数声明中的类型**
 ```c++
 template<typename T>
 void f(ParamType param);
@@ -39,13 +44,14 @@ f(rx); // rx is lvalue, so T is const int&,
 f(27); // 27 is rvalue, so T is int,
 			 // param's type is therefore int&&
 ```
-在《C++ Primer》16.2.5中介绍了这种情况：“当我们将一个左值传递给函数的优质引用参数，且此右值引用指向模板类型参数（如T&&）时，编译器推断模板类型参数为实参的左值引用类型。”因此f(x)中T为int&， f(cx)中T为const int&。同时，“我们不能（直接）定义一个引用的引用”，这时有另外的一个规则，叫**引用折叠**
 
-**引用折叠**
+在《C++ Primer》16.2.5中介绍了这种情况：“当我们将一个左值传递给函数的优质引用参数，且此右值引用指向模板类型参数（如T&&）时，编译器推断模板类型参数为实参的左值引用类型。”因此f(x)中T为int&， f(cx)中T为const int&。同时，“我们不能（直接）定义一个引用的引用”，这时有另外的一个规则，叫**引用折叠**
+```
+引用折叠
 * X& &、X& &&和X&& &都折叠成类型X&
 * 类型X&& &&折叠成X&&
-
-* **当传入的是左值时，类型推断会推向左值引用；若传入的是右值才推为右值引用。**
+* 当传入的是左值时，类型推断会推向左值引用；若传入的是右值才推为右值引用。**
+```
 
 ParamType 是值，T
 ```c++
@@ -53,14 +59,13 @@ f(x);  // T's and param's types are both int
 f(cx); // T's and param's types are again both int
 f(rx); // T's and param's types are still both int
 ```
-* **会将传入的值去引用，并去const。**
+会将传入的值去引用，并去const。
 
-**当传入数组会怎么样？**
-是的，聪明的你会发现下面的格式是错的
+**当传入数组会怎么样？**是的，聪明的你会发现下面的格式是错的
 ```c++
 void myFunc(int param[]);
 ```
-并且在数组名字单独出现时，往往被视作一个指针
+在数组名字单独出现时，往往被视作一个指针
 ```c++
 void myFunc(int* param);
 ```
@@ -71,7 +76,7 @@ void f(T& param); // template with by-reference parameter
 
 f(name); // pass array to f
 ```
-T会被推断为const char [13]，f的参数是const char (&)[13].
+T会被推断为const char [13]，f的参数是const char (&)[13]。  
 进一步的，如果想知道一个数组的大小，可以像下面这样
 ```c++
 template<typename T, std::size_t N> 
@@ -98,7 +103,7 @@ decay to pointers, unless they’re used to initialize references.
 1，什么是Universal reference?
 2，什么样的参数为volatile？
 
-### 2) auto语句中的类型推断
+## Item 2: auto语句中的类型推断
 一般情况下，可以用模板函数中的类型推断来判断auto的结果。如
 ```c++
 auto x = 27;
@@ -183,7 +188,7 @@ izer_list, and template type deduction doesn’t.
 * auto in a function return type or a lambda parameter implies template type
 deduction, not auto type deduction.
 
-### 3) 理解decltype
+## Item 3: 理解decltype
 
 先来一些no surprise的例子
 ```c++
@@ -208,7 +213,7 @@ vector<int> v;           // decltype(v) is vector<int>
 if (v[0] == 0) …         // decltype(v[0]) is int&
 ```
 
-在C++11中，decltype主要用于函数返回类型(return type)基于参数类型(parameter types)的情况。
+在C++11中，decltype主要用于函数返回类型(return type)基于参数类型(parameter types)的情况：
 ```c++
 template<typename Container, typename Index> // works, but
 auto authAndAccess(Container& c, Index i)    // requires
@@ -218,3 +223,104 @@ auto authAndAccess(Container& c, Index i)    // requires
 	return c[i];
 }
 ```
+在C++14中可以直接使用auto作为返回类型：
+```c++
+template<typename Container, typename Index> // C++14;
+auto authAndAccess(Container& c, Index i)    // not quite
+{                                            // correct
+	authenticateUser();
+	return c[i]; // return type deduced from c[i]
+}
+```
+
+值得注意的是，尽管c[i]一般返回的是引用类型，但由于模板类型推断去引用的，所以下面的代码是错误的。
+```c++
+std::deque<int> d;
+…
+authAndAccess(d, 5) = 10; // authenticate user, return d[5],
+                          // then assign 10 to it;
+                          // this won't compile!
+```
+这里，函数authAndAccess返回的是一个右值(rvalue)，C++中给右值赋值是被禁止的。  
+
+C++14可以decltype(auto)来实现返回与c[i]一致的类型：
+```c++
+template<typename Container, typename Index> // C++14; works,
+decltype(auto) 															 // but still
+authAndAccess(Container& c, Index i) 				 // requires
+{ 																					 // refinement
+authenticateUser();
+return c[i];
+}
+```
+decltype(auto)也可以用在变量的声明中：
+```c++
+Widget w;
+const Widget& cw = w;
+auto myWidget1 = cw; // auto type deduction:
+                     // myWidget1's type is Widget
+decltype(auto) myWidget2 = cw; // decltype type deduction:
+															 // myWidget2's type is
+															 // const Widget&
+```
+
+decltype 的surprise出现在右值容器上。用户可能只想得到临时容器中的拷贝，如：
+```c++
+std::deque<std::string> makeStringDeque(); // factory function
+// make copy of 5th element of deque returned
+// from makeStringDeque
+auto s = authAndAccess(makeStringDeque(), 5);
+```
+这时用decltype(auto)就会得到对容器元素的引用，这是并不安全的。为了让 authAndAccess 能同时接受左值和右值，需要用上Universal reference：
+```c++
+template<typename Container, typename Index> // c is now a
+decltype(auto) authAndAccess(Container&& c, // universal
+                             Index i); // reference
+```
+书上还提到了forward，虽然不太了解还是放上来吧：
+```c++
+template<typename Container, typename Index> // final
+decltype(auto)                               // C++14
+authAndAccess(Container&& c, Index i)        // version
+{
+authenticateUser();
+return std::forward<Container>(c)[i];
+}
+
+template<typename Container, typename Index> // final
+auto                                         // C++11
+authAndAccess(Container&& c, Index i)        // version
+-> decltype(std::forward<Container>(c)[i])
+{
+authenticateUser();
+return std::forward<Container>(c)[i];
+}
+```
+
+变量名是个左值，对一个变量名字使用decltype，会得到该变量的declared type。但对于比变量名字更复杂的**左值表达式**，decltype总是会得到一个左值引用。比如下面的这个**奇怪**的例子：
+```c++
+decltype(auto) f1()
+{
+int x = 0;
+…
+return x; // decltype(x) is int, so f1 returns int
+}
+
+decltype(auto) f2()
+{
+int x = 0;
+…
+return (x); // decltype((x)) is int&, so f2 returns int&
+}
+```
+x 是一个类型为int 的变量名，所以f1是int类型的。但(x)是比名字更复杂的左值表达式，所以f2是int &类型的。
+
+**Things to Remember**
+* decltype almost always yields the type of a variable or expression without
+any modifications.
+* For lvalue expressions of type T other than names, decltype always reports a
+type of T&.
+* C++14 supports decltype(auto), which, like auto, deduces a type from its
+initializer, but it performs the type deduction using the decltype rules.
+
+## Item 4：Know how to view deduced types
