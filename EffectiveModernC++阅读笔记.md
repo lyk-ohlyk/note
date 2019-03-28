@@ -2,13 +2,13 @@
 仅供个人学习  
 请lyk坚持记录
 
-* [一，Deducing Types (类型推断)](#DeducingTypes)  
-	-[Item 1: 理解模板类型推断](#Item1理解模板类型推断)  
-	-[Item 2: auto语句中的类型推断](##2auto语句中的类型推断)  
-	-[Item 3: 理解decltype](##Item3理解decltype)  
+* [一，Deducing Types (类型推断)](#deducing-types-类型推断)  
+	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
+	-[Item 2: auto语句中的类型推断](#item-2auto语句中的类型推断)  
+	-[Item 3: 理解decltype](#item-3理解decltype)  
 
 # Deducing Types (类型推断)
-## Item 1: 理解模板类型推断
+## Item 1:理解模板类型推断
 **模板函数声明中的类型**
 ```c++
 template<typename T>
@@ -103,7 +103,7 @@ decay to pointers, unless they’re used to initialize references.
 1，什么是Universal reference?
 2，什么样的参数为volatile？
 
-## Item 2: auto语句中的类型推断
+## Item 2:auto语句中的类型推断
 一般情况下，可以用模板函数中的类型推断来判断auto的结果。如
 ```c++
 auto x = 27;
@@ -188,7 +188,7 @@ izer_list, and template type deduction doesn’t.
 * auto in a function return type or a lambda parameter implies template type
 deduction, not auto type deduction.
 
-## Item 3: 理解decltype
+## Item 3:理解decltype
 
 先来一些no surprise的例子
 ```c++
