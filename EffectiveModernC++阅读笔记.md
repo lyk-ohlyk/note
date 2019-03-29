@@ -6,6 +6,9 @@
 	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
 	-[Item 2: auto语句中的类型推断](#item-2auto语句中的类型推断)  
 	-[Item 3: 理解decltype](#item-3理解decltype)  
+	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
+* [二，Auto](#auto)
+	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显示类型声明)
 
 # Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -61,7 +64,7 @@ f(rx); // T's and param's types are still both int
 ```
 会将传入的值去引用，并去const。
 
-**当传入数组会怎么样？**是的，聪明的你会发现下面的格式是错的
+**当传入数组会怎么样？** 是的，聪明的你会发现下面的格式是错的
 ```c++
 void myFunc(int param[]);
 ```
@@ -323,4 +326,77 @@ type of T&.
 * C++14 supports decltype(auto), which, like auto, deduces a type from its
 initializer, but it performs the type deduction using the decltype rules.
 
-## Item 4：Know how to view deduced types
+## Item 4：如何观测实际的类型推断
+书中给出了三种方法：IDE自动推断（getting type deduction information as you edit your code），编译中获取（getting it during compilation）和在运行中获取（getting it at runtime）。
+
+Visual Studio 2015可以对相对简单的类型进行推断:
+```c++
+const int theAnswer = 42;
+auto x = theAnswer;  //把鼠标放在auto上就能看到推断的类型
+auto y = &theAnswer;
+```
+
+在代码编译时，若出现error，会给出相关的信息，这也能得到推断的类型，如：
+```c++
+template<typename T> // declaration only for TD;
+class TD;            // TD == "Type Displayer"
+TD<decltype(x)> xType; // elicit errors containing
+TD<decltype(y)> yType; // x's and y's types
+```
+由于TD并没有定义，会出现如下的错误：  
+error: aggregate 'TD<**int**> xType' has incomplete type and
+       cannot be defined
+error: aggregate 'TD<**const int \***> yType' has incomplete type
+       and cannot be defineds
+
+在函数运行时，你也可以使用函数typeid：
+```C++
+std::cout << typeid(x).name() << '\n'; 
+std::cout << typeid(*x).name() << '\n'; 
+```
+
+然而，这些方法都或多或少有些问题，如VS中的类型推断可能不是很直白
+```C++
+const std::_Simple_types<std::_Wrap_alloc<std::_Vec_base_types<Widget,
+std::allocator<Widget> >::_Alloc>::value_type>::value_type *
+```
+有个Boost TypeIndex library（http://boost.com )，可以在std::type_info::name 和 IDEs没那么好用的情况下使用。
+
+**Things to Remember**
+* Deduced types can often be seen using IDE editors, compiler error messages,
+and the Boost TypeIndex library.  
+* The results of some tools may be neither helpful nor accurate, so an understanding
+of C++’s type deduction rules remains essential.  
+
+#auto
+## Item 5: 多用auto替换显示类型声明
+auto有很多好处：
+* 可以避免未定义的情况：
+```c++
+int x1; // potentially uninitialized
+auto x2; // error! initializer required
+auto x3 = 0; // fine, x's value is well-defined
+```
+* 可以避免繁琐的类型声明，且可以随参数改变：
+```c++
+template<typename It> // 设It是一个迭代器类型
+void dwim(It b, It e)
+{
+while (b != e) {
+auto currValue = *b;
+…
+}
+}
+```
+在C++14中，还可以在lambda表达式中使用**auto**：
+```c++
+auto derefUPLess =                      // comparison func.
+	[](const std::unique_ptr<Widget>& p1, // for Widgets
+	const std::unique_ptr<Widget>& p2)    // pointed to by
+{ return *p1 < *p2; };                  // std::unique_ptrs
+
+auto derefLess =       // C++14 comparison
+	[](const auto& p1,   // function for
+	const auto& p2)      // values pointed
+{ return *p1 < *p2; }; // to by anything pointer-like
+```
