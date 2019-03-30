@@ -425,9 +425,9 @@ std::vector<int> v;
 unsigned sz = v.size();
 ```
 
-一般情况下这没有问题，然而**unsigned** 和 **std::vector&lt;int&rt;::size_type** 并不完全一致。  
+一般情况下这没有问题，然而**unsigned** 和 **std::vector&lt;int&gt;::size_type** 并不完全一致。  
 
-在32位的Windows系统中，两者一致；在64位的Windows系统中，**unsigned**是32位的，而**std::vector&lt;int&rt;::size_type**
+在32位的Windows系统中，两者一致；在64位的Windows系统中，**unsigned**是32位的，而**std::vector&lt;int&gt;::size_type**
 是64位的,从而可能导致错误。  
 
 再看下面的例子：
@@ -440,7 +440,7 @@ for (const std::pair<std::string, int>& p : m)
 }
 40 |
 ```
-是不是一眼看上去并没有错误？然而在std::unordered_map中的key是**const**类型的，也就是说pair应该为**std::pair&lt;const std::string, int&rt;**。使用auto就能避免这种错误的类型声明。  
+是不是一眼看上去并没有错误？然而在std::unordered_map中的key是**const**类型的，也就是说pair应该为**std::pair&lt;const std::string, int&gt;**。使用auto就能避免这种错误的类型声明。  
 
 **Things to Remember**
 * auto variables must be initialized, are generally immune to type mismatches
@@ -451,7 +451,7 @@ specified types.
 
 ## Item 6:用显示类型声明来避免auto的不合适推断  
 
-有意思的是，瞎用auto也会导致错误，**std::vector&lt;bool&rt;** 就是一个典型的例子：
+有意思的是，瞎用auto也会导致错误，**std::vector&lt;bool&gt;** 就是一个典型的例子：
 
 ```c++
 std::vector<bool> features(const Widget& w);
@@ -464,17 +464,17 @@ auto highPriority_auto = features(w)[5];
 processWidget(w, highPriority_auto); // undefined behavior!
 ```
 
-一般来说，std::vector::operator[]会返回相应的引用类型，唯独除了bool。这是由于C++在实现vector&lt;bool&rt; 时是根据二进制数某位上的值来得到各个value的，而C++禁止对位的引用，所以operator[]会返回 std::vector&lt;bool&rt;::reference 作为替代，它使用起来就和 bool& 类似。然而，在上面的代码中，我们想要的是**bool**类型而不是reference，所以这里应该使用显式的bool类型声明。
+一般来说，std::vector::operator[] 会返回相应的引用类型，唯独除了 bool 。这是由于C++在实现 vector&lt;bool&gt; 时是根据二进制数某位上的值来得到各个value的，而C++禁止对位的引用，所以 operator[] 会返回 std::vector&lt;bool&gt;::reference 作为替代，它使用起来就和 bool& 类似。然而，在上面的代码中，我们想要的是**bool**类型而不是 reference ，所以这里应该使用显式的 bool 类型声明。
 
-更进一步的，仔细看上面这段代码，feature(w)产生了一个临时变量，而feature(w)[5]是对这个临时变量的 vector&lt;bool&rt;::reference。因此， highPriority_auto 实际包含了对这个临时变量的元素的指针，这导致在下一句中， highPriority_auto 包含了一个空指针，从而导致严重错误。
+更进一步的，仔细看上面这段代码，feature(w) 产生了一个临时变量，而 feature(w)[5] 是对这个临时变量的 vector&lt;bool&gt;::reference 。因此， highPriority_auto 实际包含了对这个临时变量的元素的指针，这导致在下一句中， highPriority_auto 包含了一个空指针，从而导致严重错误。
 
-**Proxy Class** 
+**Proxy Class**  
 Proxy class: a class that exists for the purpose of emulating and augmenting the behavior of some other type.
-Proxy 类的目的模仿或改进某个类型的行为。如std::vector&lt;bool&rt;::reference 就是一个**proxy class**，用来模仿vector&lt;bool&rt;的operator[]，让其看起来像是返回了一个bool&。  
-智能指针std::shared_ptr 和 std::unique_ptr等也是Proxy class，为了改进 生指针(Raw pointer) 在资源管理上的行为。  
-说白了，proxy class的作用就是产生一个代理(proxy)，若对含有proxy class 的代码使用auto，很可能会得到proxy class的类型而不是**看上去**直接的类型。
+Proxy 类的目的模仿或改进某个类型的行为。如 std::vector&lt;bool&gt;::reference 就是一个**proxy class**，用来模仿 vector&lt;bool&gt;的operator[]，让其看起来像是返回了一个bool&。  
+智能指针 std::shared_ptr 和 std::unique_ptr 等也是 Proxy class，为了改进 生指针(Raw pointer) 在资源管理上的行为。  
+说白了，proxy class 的作用就是产生一个代理(proxy)，若对含有 proxy class 的代码使用 auto ，很可能会得到 proxy class的类型而不是**看上去**直接的类型。
 
-如果非要用auto也不是不行：
+如果非要用 auto 也不是不行：
 ```c++
 auto highPriority = static_cast<bool>(features(w)[5]);
 ```
