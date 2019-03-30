@@ -9,7 +9,7 @@
 	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
 * [二，Auto](#auto)  
 	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显式类型声明)  
-	-[Item 6:用显示类型声明来避免auto的不合适推断](#Item-6用显示类型声明来避免auto的不合适推断)  
+	-[Item 6:用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
 
 # Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -414,9 +414,9 @@ derefUPLess = [](const std::unique_ptr<Widget>& p1,
 { return *p1 < *p2; };
 ```
 
-由于 std::function 是一个模板，所以它会比auto使用更多的空间。  
+由于 std::function 是一个模板，所以它会比 auto 使用更多的空间。  
 
-### auto可以避免不合适的类型声明
+### auto 可以避免不合适的类型声明
 
 比如下面的代码：
 ```c++
@@ -425,10 +425,9 @@ std::vector<int> v;
 unsigned sz = v.size();
 ```
 
-一般情况下这没有问题，然而**unsigned** 和 **std::vector&lt;int&gt;::size_type** 并不完全一致。  
+一般情况下这没有问题，然而 **unsigned** 和 **std::vector&lt;int&gt;::size_type** 并不完全一致。  
 
-在32位的Windows系统中，两者一致；在64位的Windows系统中，**unsigned**是32位的，而**std::vector&lt;int&gt;::size_type**
-是64位的,从而可能导致错误。  
+在32位的Windows系统中，两者一致；在64位的 Windows 系统中，**unsigned** 是32位的，而 **std::vector&lt;int&gt;::size_type** 是64位的,从而可能导致错误。  
 
 再看下面的例子：
 ```c++
@@ -438,9 +437,8 @@ for (const std::pair<std::string, int>& p : m)
 {
 … // do something with p
 }
-40 |
 ```
-是不是一眼看上去并没有错误？然而在std::unordered_map中的key是**const**类型的，也就是说pair应该为**std::pair&lt;const std::string, int&gt;**。使用auto就能避免这种错误的类型声明。  
+是不是一眼看上去并没有错误？然而在 std::unordered_map 中的 key 是 **const** 类型的，也就是说 pair 应该为 **std::pair&lt;const std::string, int&gt;**。使用 auto 就能避免这种错误的类型声明。  
 
 **Things to Remember**
 * auto variables must be initialized, are generally immune to type mismatches
@@ -449,7 +447,7 @@ refactoring, and typically require less typing than variables with explicitly
 specified types.
 * auto-typed variables are subject to the pitfalls described in Items 2 and 6.
 
-## Item 6:用显示类型声明来避免auto的不合适推断  
+## Item 6:用显示类型声明来避免 auto 的不合适推断  
 
 有意思的是，瞎用auto也会导致错误，**std::vector&lt;bool&gt;** 就是一个典型的例子：
 
