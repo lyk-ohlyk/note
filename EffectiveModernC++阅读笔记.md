@@ -9,6 +9,7 @@
 	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
 * [二，Auto](#auto)  
 	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显式类型声明)  
+	-[Item 6:用显示类型声明来避免auto的不合适推断](#Item-6用显示类型声明来避免auto的不合适推断)  
 
 # Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -355,7 +356,7 @@ std::cout << typeid(x).name() << '\n';
 std::cout << typeid(*x).name() << '\n'; 
 ```
 
-然而，这些方法都或多或少有些问题，如VS中的类型推断可能不是很直白
+然而，这些方法都或多或少有些问题，如VS中的类型推断可能不是很直白：
 ```C++
 const std::_Simple_types<std::_Wrap_alloc<std::_Vec_base_types<Widget,
 std::allocator<Widget> >::_Alloc>::value_type>::value_type *
@@ -371,13 +372,13 @@ of C++’s type deduction rules remains essential.
 # auto
 ## Item 5:多用auto替换显式类型声明
 auto有很多好处：
-* 可以避免未定义的情况：
+### 可以避免未定义的情况：
 ```c++
 int x1; // potentially uninitialized
 auto x2; // error! initializer required
 auto x3 = 0; // fine, x's value is well-defined
 ```
-* 可以避免繁琐的类型声明，且可以随参数改变：
+### 可以避免繁琐的类型声明，且可以随参数改变：
 ```c++
 template<typename It> // 设It是一个迭代器类型
 void dwim(It b, It e)
@@ -400,3 +401,86 @@ auto derefLess =       // C++14 comparison
   const auto& p2)      // values pointed
 { return *p1 < *p2; }; // to by anything pointer-like
 ```
+
+书中提到了std::function 对象：在C++11标准库中，std::function 是一个产生类似于函数指针的模板。与函数指针不同的是，函数指针只能指向函数，而std::function 可以指向所有的可调用对象。如：
+```c++
+std::function<bool(const std::unique_ptr<Widget>&,
+                   const std::unique_ptr<Widget>&)> func;
+
+std::function<bool(const std::unique_ptr<Widget>&,
+                   const std::unique_ptr<Widget>&)>
+derefUPLess = [](const std::unique_ptr<Widget>& p1,
+                 const std::unique_ptr<Widget>& p2)
+{ return *p1 < *p2; };
+```
+
+由于 std::function 是一个模板，所以它会比auto使用更多的空间。  
+
+### auto可以避免不合适的类型声明
+
+比如下面的代码：
+```c++
+std::vector<int> v;
+…
+unsigned sz = v.size();
+```
+
+一般情况下这没有问题，然而**unsigned** 和 **std::vector&lt;int&rt;::size_type** 并不完全一致。  
+
+在32位的Windows系统中，两者一致；在64位的Windows系统中，**unsigned**是32位的，而**std::vector&lt;int&rt;::size_type**
+是64位的,从而可能导致错误。  
+
+再看下面的例子：
+```c++
+std::unordered_map<std::string, int> m;
+…
+for (const std::pair<std::string, int>& p : m)
+{
+… // do something with p
+}
+40 |
+```
+是不是一眼看上去并没有错误？然而在std::unordered_map中的key是**const**类型的，也就是说pair应该为**std::pair&lt;const std::string, int&rt;**。使用auto就能避免这种错误的类型声明。  
+
+**Things to Remember**
+* auto variables must be initialized, are generally immune to type mismatches
+that can lead to portability or efficiency problems, can ease the process of
+refactoring, and typically require less typing than variables with explicitly
+specified types.
+* auto-typed variables are subject to the pitfalls described in Items 2 and 6.
+
+## Item 6:用显示类型声明来避免auto的不合适推断  
+
+有意思的是，瞎用auto也会导致错误，**std::vector&lt;bool&rt;** 就是一个典型的例子：
+
+```c++
+std::vector<bool> features(const Widget& w);
+Widget w;
+…
+bool highPriority = features(w)[5]; // is w high priority?
+processWidget(w, highPriority); // process w in accord with its priority
+
+auto highPriority_auto = features(w)[5];
+processWidget(w, highPriority_auto); // undefined behavior!
+```
+
+一般来说，std::vector::operator[]会返回相应的引用类型，唯独除了bool。这是由于C++在实现vector&lt;bool&rt; 时是根据二进制数某位上的值来得到各个value的，而C++禁止对位的引用，所以operator[]会返回 std::vector&lt;bool&rt;::reference 作为替代，它使用起来就和 bool& 类似。然而，在上面的代码中，我们想要的是**bool**类型而不是reference，所以这里应该使用显式的bool类型声明。
+
+更进一步的，仔细看上面这段代码，feature(w)产生了一个临时变量，而feature(w)[5]是对这个临时变量的 vector&lt;bool&rt;::reference。因此， highPriority_auto 实际包含了对这个临时变量的元素的指针，这导致在下一句中， highPriority_auto 包含了一个空指针，从而导致严重错误。
+
+**Proxy Class** 
+Proxy class: a class that exists for the purpose of emulating and augmenting the behavior of some other type.
+Proxy 类的目的模仿或改进某个类型的行为。如std::vector&lt;bool&rt;::reference 就是一个**proxy class**，用来模仿vector&lt;bool&rt;的operator[]，让其看起来像是返回了一个bool&。  
+智能指针std::shared_ptr 和 std::unique_ptr等也是Proxy class，为了改进 生指针(Raw pointer) 在资源管理上的行为。  
+说白了，proxy class的作用就是产生一个代理(proxy)，若对含有proxy class 的代码使用auto，很可能会得到proxy class的类型而不是**看上去**直接的类型。
+
+如果非要用auto也不是不行：
+```c++
+auto highPriority = static_cast<bool>(features(w)[5]);
+```
+
+**Things to Remember**
+* “Invisible” proxy types can cause auto to deduce the “wrong” type for an initializing
+expression.
+* The explicitly typed initializer idiom forces auto to deduce the type you want
+it to have.
