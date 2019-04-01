@@ -2,18 +2,18 @@
 仅供个人学习  
 请lyk坚持记录
 
-* [一，Deducing Types (类型推断)](#deducing-types-类型推断)  
+* [一，Deducing Types (类型推断)](#一deducing-types-类型推断)  
 	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
 	-[Item 2: auto语句中的类型推断](#item-2auto语句中的类型推断)  
 	-[Item 3: 理解decltype](#item-3理解decltype)  
 	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
-* [二，Auto](#auto)  
+* [二，Auto](#二auto)  
 	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显式类型声明)  
 	-[Item 6:用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
-* [三，Moving to Modern C++](#movingtomodernc++)
-	-[Item 7:辨别生成对象时()和{}的不同](#Item-7:辨别生成对象时和的不同)
+* [三，Moving to Modern C++](#三moving-to-modern-c)  
+	-[Item 7:辨别生成对象时()和{}的不同](#item-7辨别生成对象时和的不同)
 
-# Deducing Types (类型推断)
+# 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
 **模板函数声明中的类型**
 ```c++
@@ -371,7 +371,7 @@ and the Boost TypeIndex library.
 * The results of some tools may be neither helpful nor accurate, so an understanding
 of C++’s type deduction rules remains essential.  
 
-# auto
+# 三，auto
 ## Item 5:多用auto替换显式类型声明
 auto有很多好处：
 ### 可以避免未定义的情况：
@@ -485,7 +485,7 @@ expression.
 * The explicitly typed initializer idiom forces auto to deduce the type you want
 it to have.
 
-# Moving to Modern C++
+# 三，Moving to Modern C++
 ## Item 7:辨别生成对象时()和{}的不同
 
 当一个类没有以 initializer_list 为参数的构造函数时，使用()和{}并无二致：
