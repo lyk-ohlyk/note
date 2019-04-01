@@ -371,7 +371,7 @@ and the Boost TypeIndex library.
 * The results of some tools may be neither helpful nor accurate, so an understanding
 of C++’s type deduction rules remains essential.  
 
-# 三，auto
+# 二，auto
 ## Item 5:多用auto替换显式类型声明
 auto有很多好处：
 ### 可以避免未定义的情况：
