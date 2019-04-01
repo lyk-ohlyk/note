@@ -10,6 +10,8 @@
 * [二，Auto](#auto)  
 	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显式类型声明)  
 	-[Item 6:用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
+* [三，Moving to Modern C++](#movingtomodernc++)
+	-[Item 7:辨别生成对象时()和{}的不同](#Item-7:辨别生成对象时和的不同)
 
 # Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -482,3 +484,144 @@ auto highPriority = static_cast<bool>(features(w)[5]);
 expression.
 * The explicitly typed initializer idiom forces auto to deduce the type you want
 it to have.
+
+# Moving to Modern C++
+## Item 7:辨别生成对象时()和{}的不同
+
+当一个类没有以 initializer_list 为参数的构造函数时，使用()和{}并无二致：
+```c++
+class Widget {
+public:
+  Widget(int i, bool b); // ctors not declaring
+  Widget(int i, double d); // std::initializer_list params
+…
+};
+Widget w1(10, true); // calls first ctor
+Widget w2{10, true}; // also calls first ctor
+Widget w3(10, 5.0); // calls second ctor
+Widget w4{10, 5.0}; // also calls second ctor
+```
+但若有了以 initializer_list 为参数的构造函数，使用{}会优先匹配对应的构造函数：
+```c++
+class Widget {
+public:
+  Widget(int i, bool b); // as before
+  Widget(int i, double d); // as before
+  Widget(std::initializer_list<long double> il); // added
+…
+};
+
+Widget w1(10, true); // uses parens and, as before,
+                     // calls first ctor
+Widget w2{10, true}; // uses braces, but now calls
+                     // std::initializer_list ctor
+                     // (10 and true convert to long double)
+Widget w3(10, 5.0); // uses parens and, as before,
+                    // calls second ctor
+Widget w4{10, 5.0}; // uses braces, but now calls
+                    // std::initializer_list ctor
+                    // (10 and 5.0 convert to long double)
+```
+这里可以看到，true 和 10 等都被隐式类型转换成了 long double，可见 initializer_list 的构造函数的优先级非常高。  
+它的优先级甚至高于了移动构造函数：
+```C++
+class Widget {
+public:
+	Widget(int i, bool b); // as before
+	Widget(int i, double d); // as before
+	Widget(std::initializer_list<long double> il); // as before
+	operator float() const; // convert
+	… // to float
+};
+
+Widget w5(w4); // uses parens, calls copy ctor
+Widget w6{w4}; // uses braces, calls
+               // std::initializer_list ctor
+               // (w4 converts to float, and float
+               // converts to long double)
+Widget w7(std::move(w4)); // uses parens, calls move ctor
+Widget w8{std::move(w4)}; // uses braces, calls
+                          // std::initializer_list ctor
+                          // (for same reason as w6)
+```
+**待编辑：说实话，这里并不太懂，w4会直接使用operator()?**
+
+```c++
+class Widget {
+public:
+  Widget(int i, bool b); // as before
+  Widget(int i, double d); // as before
+  Widget(std::initializer_list<bool> il); // element type is
+                                          // now bool
+  … // no implicit
+}; // conversion funcs
+
+Widget w{10, 5.0}; // error! requires narrowing conversions
+```
+从上面这例可以看出，编译器非常倾向于使用 std::initializer_list 的构造函数，从而使得正确匹配参数的构造函数并不会被使用。另外还有个小知识点：{}初始器中，缩小范围的隐式类型转换会报错。  
+只有在无法进行类型转换的情况下，编译器才会考虑其他的构造函数：
+```c++
+class Widget {
+public:
+  Widget(int i, bool b); // as before
+  Widget(int i, double d); // as before
+// std::initializer_list element type is now std::string
+  Widget(std::initializer_list<std::string> il);
+  … // no implicit
+}; // conversion funcs
+
+Widget w1(10, true); // uses parens, still calls first ctor
+Widget w2{10, true}; // uses braces, now calls first ctor
+Widget w3(10, 5.0); // uses parens, still calls second ctor
+Widget w4{10, 5.0}; // uses braces, now calls second ctor
+```
+
+那么，当初始化是使用空的 {} 会怎么样呢？是空的 initializer_list 还是调用默认构造函数？结论是**调用默认构造函数**。当然了，如果你想使用空的 ()，那会变成调用一个对应名字的函数了：
+```c++
+class Widget {
+public:
+  Widget(); // default ctor
+  Widget(std::initializer_list<int> il); // std::initializer_list ctor
+  … // no implicit
+}; // conversion funcs
+
+Widget w1; // calls default ctor
+Widget w2{}; // also calls default ctor
+Widget w3(); // most vexing parse! declares a function!
+```
+
+如果真的想调用空的 initializer_list，需要两重括号：
+```c++
+Widget w4({}); // calls std::initializer_list ctor
+               // with empty list
+Widget w5{{}}; // ditto
+```
+
+对于模板编写者来说，若想自己定义对于 () 中参数的反应，可以想如下代码这样：
+```c++
+template<typename T, // type of object to create
+	typename... Ts> // types of arguments to use
+void doSomeWork(Ts&&... params)
+{
+  T localObject1(std::forward<Ts>(params)...); // using parens  
+  // 或者像下面这样
+  T localObject2{std::forward<Ts>(params)...}; // using braces
+…
+}
+```
+这样，对于下面的代码，localObject1 会是一个由10个元素组成的 vector，而 localObject2 是由2个元素组成的 vector。
+```c++
+doSomeWork<std::vector<int>>(10, 20);
+```
+
+**Things to Remember**
+* Braced initialization is the most widely usable initialization syntax, it prevents
+narrowing conversions, and it’s immune to C++’s most vexing parse.
+* During constructor overload resolution, braced initializers are matched to
+std::initializer_list parameters if at all possible, even if other constructors
+offer seemingly better matches.
+* An example of where the choice between parentheses and braces can make a
+significant difference is creating a std::vector&lt;numeric type&gt; with two
+arguments.
+* Choosing between parentheses and braces for object creation inside templates
+can be challenging.
