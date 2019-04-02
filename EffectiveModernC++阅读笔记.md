@@ -13,7 +13,7 @@
 * [三，Moving to Modern C++](#三moving-to-modern-c)  
 	-[Item 7:辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
 	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
-	-[Item 9:多用别名定义而不是 typedefs](#Item-9多用别名定义而不是-typedefs)
+	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -733,7 +733,7 @@ private:
 };
 ```
 
-之所以会这样，是因为使用 alias template 的 MyAllocList<T> 必定是一个类型，而使用typedef的 MyAllocList<T>::type 并不一定是类型，所以后者需要使用 typename 来保证编译不会出错。作者在这顺带吐槽了一下：“That sounds
+之所以会这样，是因为使用 alias template 的 MyAllocList<T> 必定是一个类型，而使用 typedef 的 MyAllocList<T>::type 并不一定是类型，所以后者需要使用 typename 来保证编译不会出错。作者在这顺带吐槽了一下：“That sounds
 crazy, but don’t blame compilers for this possibility. It’s the humans who have been
 known to produce such code.”
 
@@ -754,7 +754,7 @@ std::add_lvalue_reference_t<T> // C++14 equivalent
 ```
 “The C++11 constructs remain valid in C++14, but I don’t know why you’d want to use them.”
 
-当然了，如果你想自己实现 C++14 类似的 alias templates，可以向下面这样做：
+当然了，如果你想自己实现 C++14 类似的 alias templates，可以像下面这样做：
 ```C++
 template <class T>
 using remove_const_t = typename remove_const<T>::type;
