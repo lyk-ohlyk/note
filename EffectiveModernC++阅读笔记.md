@@ -4,14 +4,16 @@
 
 * [一，Deducing Types (类型推断)](#一deducing-types-类型推断)  
 	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
-	-[Item 2: auto语句中的类型推断](#item-2auto语句中的类型推断)  
-	-[Item 3: 理解decltype](#item-3理解decltype)  
+	-[Item 2: auto 语句中的类型推断](#item-2auto语句中的类型推断)  
+	-[Item 3: 理解 decltype](#item-3理解decltype)  
 	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
 * [二，Auto](#二auto)  
-	-[Item 5: 多用auto替换显示类型声明](#Item-5多用auto替换显式类型声明)  
+	-[Item 5: 多用 auto 替换显示类型声明](#Item-5多用auto替换显式类型声明)  
 	-[Item 6:用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
 * [三，Moving to Modern C++](#三moving-to-modern-c)  
-	-[Item 7:辨别生成对象时()和{}的不同](#item-7辨别生成对象时和的不同)
+	-[Item 7:辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
+	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
+	-[Item 9:多用别名定义而不是 typedefs](#Item-9多用别名定义而不是-typedefs)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -597,7 +599,7 @@ Widget w4({}); // calls std::initializer_list ctor
 Widget w5{{}}; // ditto
 ```
 
-对于模板编写者来说，若想自己定义对于 () 中参数的反应，可以想如下代码这样：
+对于模板编写者来说，若想自己定义对于 () 中参数的反应，可以像如下代码这样：
 ```c++
 template<typename T, // type of object to create
 	typename... Ts> // types of arguments to use
@@ -625,3 +627,147 @@ significant difference is creating a std::vector&lt;numeric type&gt; with two
 arguments.
 * Choosing between parentheses and braces for object creation inside templates
 can be challenging.
+
+## Item 8:多用 nullptr 代替 0 和 null
+当 C++ 发现一个需要用指针的地方出现了0时，它通常会把0看作是一个空指针。然而，C++主要的原则还是将0看作是一个int。NULL 也类似，编译允许在一些情况下将 NULL 当成一个整数（如 long）。
+在 C++98 中，使用0和 NULL 的重载可能会有一些意外：
+```c++
+void f(int); // three overloads of f
+void f(bool);
+void f(void*);
+
+f(0); // calls f(int), not f(void*)
+f(NULL); // might not compile, but typically calls
+         // f(int). Never calls f(void*)
+```
+如果 NULL 的定义是 0L，那么编译的结果可能是模糊的，因为从 long 到 int 和从 0L 到 void* 是同样优先的。  
+所以，之所以推荐使用 nullptr，就是因为 nullptr 没有 int 类型，从而可以把它看成是一个可以代表所有类型的空指针。
+```c++
+f(nullptr); // calls f(void*) overload
+```
+在 cppreference 网站上找到个有意思的例子：
+```c++
+template<class F, class A>
+void Fwd(F f, A a)
+{
+    f(a);
+}
+ 
+void g(int* i)
+{
+    std::cout << "Function g called\n";
+}
+ 
+int main()
+{
+    g(NULL);           // Fine
+    g(0);              // Fine
+ 
+    Fwd(g, nullptr);   // Fine
+//  Fwd(g, NULL);  // ERROR: No function g(int)
+}
+```
+这个例子有意思在哪呢？可以知道，如果单纯的调用函数 g:
+```c++
+g(0);
+g(NULL);
+```
+是不会出错的，0 和 NULL 都被转换成了空指针；然而模板中 0 和 NULL 都被推断为 int 类型，从而导致了错误。这种错误排查起来可是很令人头疼的。
+
+**Things to Remember**
+* Prefer nullptr to 0 and NULL.
+* Avoid overloading on integral and pointer types.
+
+## Item 9:多用 alias declarations 而不是 typedefs
+当定义较长且常用时，C++11 以前一般用 typedef 来简化代码：
+```C++
+typedef std::unique_ptr<std::unordered_map<std::string, std::string>> UPtrMapSS;
+```
+C++11 提供了 alias declarations：
+```C++
+using UPtrMapSS = std::unique_ptr<std::unordered_map<std::string, std::string>>;
+```
+他们俩提供了相同的作用。那么为什么还提倡使用 alias declarations 呢？首先 alias declarations 在涉及到函数指针时更直观：
+```c++
+// FP is a synonym for a pointer to a function taking an int and
+// a const std::string& and returning nothing
+typedef void (*FP)(int, const std::string&); // typedef
+
+// same meaning as above
+using FP = void (*)(int, const std::string&); // alias declaration
+```
+
+其次， alias declarations 可以模板化，而 typedef 不能：
+```c++
+template<typename T> // MyAllocList<T>
+using MyAllocList = std::list<T, MyAlloc<T>>; // is synonym for std::list<T, MyAlloc<T>>
+MyAllocList<Widget> lw; // client code
+```
+```c++
+template<typename T> // MyAllocList<T>::type
+struct MyAllocList {                     // is synonym for
+  typedef std::list<T, MyAlloc<T>> type; // std::list<T,
+};                                       // MyAlloc<T>>
+MyAllocList<Widget>::type lw; // client code
+```
+当使用 typedef 时，如果我们想用 MyAllocList 在模板里创建一个对象，需要使用 typename:
+```c++
+template<typename T>
+class Widget { // Widget<T> contains
+private: // a MyAllocList<T>
+  typename MyAllocList<T>::type list; // as a data member
+…
+};
+```
+在这里，MyAllocList&lt;T&gt;::type 是一个依赖于参数T的依赖类型(dependent type)，而C++要求依赖类型必须使用 typename。  
+而若是使用 alias template，代码会明快很多：
+```c++
+template<typename T>
+using MyAllocList = std::list<T, MyAlloc<T>>; // as before
+
+template<typename T>
+class Widget {
+private:
+  MyAllocList<T> list; // no "typename",
+… // no "::type"
+};
+```
+
+之所以会这样，是因为使用 alias template 的 MyAllocList<T> 必定是一个类型，而使用typedef的 MyAllocList<T>::type 并不一定是类型，所以后者需要使用 typename 来保证编译不会出错。作者在这顺带吐槽了一下：“That sounds
+crazy, but don’t blame compilers for this possibility. It’s the humans who have been
+known to produce such code.”
+
+在 C++11 中，有个叫 type_traits 的标准库，提供了允许用户得到不同的参数类型：
+```c++
+std::remove_const<T>::type // yields T from const T
+std::remove_reference<T>::type // yields T from T& and T&&
+std::add_lvalue_reference<T>::type // yields T& from T
+```
+注意这里都使用了 ::type。没错，这是 C++11 的，之所以不用 alias template 是由于一些历史原因。在 C++14 中，alias template 的 type_traits 也被加上了:
+```c++
+std::remove_const<T>::type // C++11: const T → T
+std::remove_const_t<T> // C++14 equivalent
+std::remove_reference<T>::type // C++11: T&/T&& → T
+std::remove_reference_t<T> // C++14 equivalent
+std::add_lvalue_reference<T>::type // C++11: T → T&
+std::add_lvalue_reference_t<T> // C++14 equivalent
+```
+“The C++11 constructs remain valid in C++14, but I don’t know why you’d want to use them.”
+
+当然了，如果你想自己实现 C++14 类似的 alias templates，可以向下面这样做：
+```C++
+template <class T>
+using remove_const_t = typename remove_const<T>::type;
+
+template <class T>
+using remove_reference_t = typename remove_reference<T>::type;
+
+template <class T>
+using add_lvalue_reference_t = typename add_lvalue_reference<T>::type;
+```
+
+**Things to Remember**
+* typedefs don’t support templatization, but alias declarations do.
+* Alias templates avoid the “::type” suffix and, in templates, the “typename”
+prefix often required to refer to typedefs.
+* C++14 offers alias templates for all the C++11 type traits transformations.
