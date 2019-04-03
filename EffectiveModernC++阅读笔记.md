@@ -1,6 +1,7 @@
 《Effective Modern C++》笔记。  
 仅供个人学习  
 请lyk坚持记录
+[![996.icu](https://img.shields.io/badge/link-996.icu-red.svg)](https://996.icu)
 
 * [一，Deducing Types (类型推断)](#一deducing-types-类型推断)  
 	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
@@ -29,9 +30,15 @@ const int& rx = x; // rx is a reference to x as a const int
 
 ParamType为普通引用,即 ParamType 为 T&
 ```c++
-int x = 27; // x is an int
-const int cx = x; // cx is a const int
-const int& rx = x; // rx is a reference to x as a const int
+template<typename T>
+void f(T& param);
+```
+```c++
+f(x); // T is int, param's type is int&
+f(cx); // T is const int,
+       // param's type is const int&
+f(rx); // T is const int,
+       // param's type is const int&
 ```
 
 ParamType 为 const T&
@@ -44,13 +51,13 @@ f(rx); // T is int, param's type is const int&
 ParamType 为右值引用 T&&，
 ```C++
 f(x); // x is lvalue, so T is int&,
-			// param's type is also int&
+      // param's type is also int&
 f(cx); // cx is lvalue, so T is const int&,
-			 // param's type is also const int&
+       // param's type is also const int&
 f(rx); // rx is lvalue, so T is const int&,
-			 // param's type is also const int&
+       // param's type is also const int&
 f(27); // 27 is rvalue, so T is int,
-			 // param's type is therefore int&&
+       // param's type is therefore int&&
 ```
 
 在《C++ Primer》16.2.5中介绍了这种情况：“当我们将一个左值传递给函数的优质引用参数，且此右值引用指向模板类型参数（如T&&）时，编译器推断模板类型参数为实参的左值引用类型。”因此f(x)中T为int&， f(cx)中T为const int&。同时，“我们不能（直接）定义一个引用的引用”，这时有另外的一个规则，叫**引用折叠**
@@ -112,12 +119,14 @@ decay to pointers, unless they’re used to initialize references.
 2，什么样的参数为volatile？
 
 ## Item 2:auto语句中的类型推断
-一般情况下，可以用模板函数中的类型推断来判断auto的结果。如
+如何推断下面的代码中 auto 分别代表了什么类型呢？
 ```c++
 auto x = 27;
 const auto cx = x;
 const auto& rx = x;
-
+```
+一般情况下，可以用模板函数中的类型推断来判断auto的结果。如：
+```c++
 template<typename T> 			// conceptual template for
 void func_for_x(T param); // deducing x's type
 func_for_x(27); 
@@ -130,8 +139,12 @@ template<typename T> 							// conceptual template for
 void func_for_rx(const T& param); // deducing rx's type
 func_for_rx(x);
 ```
+根据 Item 1，我们可以将模板的类型推断分为三种：  
+* Case 1: The type specifier is a pointer or reference, but not a universal reference.  
+* Case 2: The type specifier is a universal reference.  
+* Case 3: The type specifier is neither a pointer nor a reference.  
 
-这样，下面的类型推断就很自然了
+这样，我们可以很自然地推断出下面的例子 auto 具体指代的内容：
 ```c++
 auto x = 27; // case 3 (x is neither ptr nor reference)
 const auto cx = x; // case 3 (cx isn't either)
@@ -147,8 +160,8 @@ auto&& uref3 = 27; // 27 is int and rvalue,
 
 同样的，对于数组、函数，也有引用和非引用的区别
 ```c++
-const char name[] = // name's type is const char[13]
-"R. N. Briggs";
+const char name[] = "R. N. Briggs";  // name's type is const char[13]
+
 auto arr1 = name;   // arr1's type is const char*
 auto& arr2 = name;  // arr2's type is const char (&)[13]
 
@@ -158,12 +171,12 @@ auto func1 = someFunc; // func1's type is void (*)(int, double)
 auto& func2 = someFunc; // func2's type is void (&)(int, double)
 ```
 
-如果用auto的对象是初始化列表，推断的结果也是初始化列表
+如果用 auto 的对象是初始化列表，推断的结果也是初始化列表
 ```c++
 int x = {27};
 auto y = {27}; // type is std::initializer_list<int>
 ```
-这也是auto和模板类型推断会不同的唯一地方：
+这也是 auto 和模板类型推断会不同的唯一地方：
 ```c++
 auto x = { 11, 23, 9 }; // x's type is
                         // std::initializer_list<int>
@@ -172,14 +185,14 @@ void f(T param);  // declaration equivalent to
                   // x's declaration
 f({ 11, 23, 9 }); // error! can't deduce type for T
 ```
-只能像下面这样用模板推断initializer_list:
+只能像下面这样用模板推断 initializer_list:
 ```c++
 template<typename T>
 void f(std::initializer_list<T> initList);
 f({ 11, 23, 9 }); // T deduced as int, and initList's
                   // type is std::initializer_list<int>
 ```
-另外，C++14允许使用auto来推断函数返回类型或lambda函数参数，但这种用法是使用的模板类型推断，而不是auto的。因此，若返回的是初始化列表并不能编译：
+另外，虽然C++14允许使用 'auto' 来推断函数返回类型或 lambda 函数参数，但这种用法是使用的模板类型推断。因此，若返回的是初始化列表并不能编译：
 ```c++
 auto createInitList()
 {
@@ -198,13 +211,13 @@ deduction, not auto type deduction.
 
 ## Item 3:理解decltype
 
-先来一些no surprise的例子
+先来一些 no surprise 的例子
 ```c++
 const int i = 0;         // decltype(i) is const int
 bool f(const Widget& w); // decltype(w) is const Widget&
                          // decltype(f) is bool(const Widget&)
 struct Point {
-	int x, y;              // decltype(Point::x) is int
+  int x, y;              // decltype(Point::x) is int
 };                       // decltype(Point::y) is int
 Widget w;                // decltype(w) is Widget
 if (f(w)) …              // decltype(f(w)) is bool
@@ -212,36 +225,36 @@ if (f(w)) …              // decltype(f(w)) is bool
 template<typename T>     // simplified version of std::vector
 class vector {
 public:
-	…
-	T& operator[](std::size_t index);
-	…
+  …
+  T& operator[](std::size_t index);
+  …
 };
 vector<int> v;           // decltype(v) is vector<int>
 …
 if (v[0] == 0) …         // decltype(v[0]) is int&
 ```
 
-在C++11中，decltype主要用于函数返回类型(return type)基于参数类型(parameter types)的情况：
+在C++11中，decltype 主要用于函数返回类型(return type)基于参数类型(parameter types)的情况：
 ```c++
 template<typename Container, typename Index> // works, but
 auto authAndAccess(Container& c, Index i)    // requires
 -> decltype(c[i])                            // refinement
 {
-	authenticateUser();
-	return c[i];
+  authenticateUser();
+  return c[i];
 }
 ```
-在C++14中可以直接使用auto作为返回类型：
+在C++14中可以直接使用 auto 作为返回类型：
 ```c++
 template<typename Container, typename Index> // C++14;
 auto authAndAccess(Container& c, Index i)    // not quite
 {                                            // correct
-	authenticateUser();
-	return c[i]; // return type deduced from c[i]
+  authenticateUser();
+  return c[i]; // return type deduced from c[i]
 }
 ```
 
-值得注意的是，尽管c[i]一般返回的是引用类型，但由于模板类型推断去引用的，所以下面的代码是错误的。
+值得注意的是，尽管 c[i] 一般返回的是引用类型，但由于模板类型推断是去引用的，所以下面的代码是错误的。
 ```c++
 std::deque<int> d;
 …
@@ -249,9 +262,9 @@ authAndAccess(d, 5) = 10; // authenticate user, return d[5],
                           // then assign 10 to it;
                           // this won't compile!
 ```
-这里，函数authAndAccess返回的是一个右值(rvalue)，C++中给右值赋值是被禁止的。  
+这里，函数 authAndAccess 返回的是一个右值(rvalue)，C++ 中给右值赋值是被禁止的。  
 
-C++14可以decltype(auto)来实现返回与c[i]一致的类型：
+C++14可以 decltype(auto) 来实现返回与c[i]一致的类型：
 ```c++
 template<typename Container, typename Index> // C++14; works,
 decltype(auto)                               // but still
@@ -272,7 +285,7 @@ decltype(auto) myWidget2 = cw; // decltype type deduction:
                                // const Widget&
 ```
 
-decltype 的surprise出现在右值容器上。用户可能只想得到临时容器中的拷贝，如：
+decltype 的 surprise 出现在右值容器上。用户可能只想得到临时容器中的拷贝，如：
 ```c++
 std::deque<std::string> makeStringDeque(); // factory function
 // make copy of 5th element of deque returned
@@ -305,7 +318,7 @@ return std::forward<Container>(c)[i];
 }
 ```
 
-变量名是个左值，对一个变量名字使用decltype，会得到该变量的declared type。但对于比变量名字更复杂的**左值表达式**，decltype总是会得到一个左值引用。比如下面的这个**奇怪**的例子：
+变量名是个左值，对一个变量名字使用 decltype，会得到该变量的 declared type。但对于比变量名字更复杂的**左值表达式**，decltype 总是会得到一个左值引用。比如下面的这个**奇怪**的例子：
 ```c++
 decltype(auto) f1()
 {
@@ -468,7 +481,7 @@ processWidget(w, highPriority_auto); // undefined behavior!
 
 一般来说，std::vector::operator[] 会返回相应的引用类型，唯独除了 bool 。这是由于C++在实现 vector&lt;bool&gt; 时是根据二进制数某位上的值来得到各个value的，而C++禁止对位的引用，所以 operator[] 会返回 std::vector&lt;bool&gt;::reference 作为替代，它使用起来就和 bool& 类似。然而，在上面的代码中，我们想要的是**bool**类型而不是 reference ，所以这里应该使用显式的 bool 类型声明。
 
-更进一步的，仔细看上面这段代码，feature(w) 产生了一个临时变量，而 feature(w)[5] 是对这个临时变量的 vector&lt;bool&gt;::reference 。因此， highPriority_auto 实际包含了对这个临时变量的元素的指针，这导致在下一句中， highPriority_auto 包含了一个空指针，从而导致严重错误。
+更进一步的，仔细看上面这段代码，feature(w) 产生了一个临时变量，而 feature(w)[5] 是对这个临时变量的 vector&lt;bool&gt;::reference 。因此，highPriority_auto 实际包含了对这个临时变量的元素的指针，这导致在下一句中， highPriority_auto 包含了一个空指针，从而导致严重错误。
 
 **Proxy Class**  
 Proxy class: a class that exists for the purpose of emulating and augmenting the behavior of some other type.
@@ -771,3 +784,4 @@ using add_lvalue_reference_t = typename add_lvalue_reference<T>::type;
 * Alias templates avoid the “::type” suffix and, in templates, the “typename”
 prefix often required to refer to typedefs.
 * C++14 offers alias templates for all the C++11 type traits transformations.
+
