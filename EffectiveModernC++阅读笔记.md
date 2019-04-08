@@ -14,7 +14,8 @@
 * [三，Moving to Modern C++](#三moving-to-modern-c)  
 	-[Item 7:辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
 	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
-	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)
+	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
+	-[Item 10:多用 scoped enums 而不是 unscoped enums](#Item-10:多用-scoped-enums-而不是-unscoped-enums)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -334,7 +335,7 @@ int x = 0;
 return (x); // decltype((x)) is int&, so f2 returns int&
 }
 ```
-x 是一个类型为int 的变量名，所以f1是int类型的。但(x)是比名字更复杂的左值表达式，所以f2是int &类型的。
+x 是一个类型为 int 的变量名，所以 f1 是 int 类型的。但 (x) 是比名字更复杂的左值表达式，所以 f2 是 int & 类型的。
 
 **Things to Remember**
 * decltype almost always yields the type of a variable or expression without
@@ -345,7 +346,7 @@ type of T&.
 initializer, but it performs the type deduction using the decltype rules.
 
 ## Item 4：如何观测实际的类型推断
-书中给出了三种方法：IDE自动推断（getting type deduction information as you edit your code），编译中获取（getting it during compilation）和在运行中获取（getting it at runtime）。
+书中给出了三种方法：IDE 自动推断（getting type deduction information as you edit your code），编译中获取（getting it during compilation）和在运行中获取（getting it at runtime）。
 
 Visual Studio 2015可以对相对简单的类型进行推断:
 ```c++
@@ -354,7 +355,7 @@ auto x = theAnswer;  //把鼠标放在auto上就能看到推断的类型
 auto y = &theAnswer;
 ```
 
-在代码编译时，若出现error，会给出相关的信息，这也能得到推断的类型，如：
+在代码编译时，若出现 error，会给出相关的信息，这也能得到推断的类型，如：
 ```c++
 template<typename T> // declaration only for TD;
 class TD;            // TD == "Type Displayer"
@@ -785,3 +786,146 @@ using add_lvalue_reference_t = typename add_lvalue_reference<T>::type;
 prefix often required to refer to typedefs.
 * C++14 offers alias templates for all the C++11 type traits transformations.
 
+# Item 10:多用 scoped enums 而不是 unscoped enums
+在 C++98 有 enum 类型，它的用法是这样的：
+```c++
+enum Color { black, white, red };
+```
+然而这样使用会有隐患，比如若在这个定义的下面加上这样一句，就会出错：
+```c++
+auto white = false;
+```
+这是由于 enum 里面的变量是包括在整个和 Color 一样的参数空间里的，即 Color 在哪有效，这些 black 等就在哪有效。 这样的范围没有被限制的 enums 被称作 unscoped enums。 为了避免这种隐患，C++11 引入了 scoped enums:
+```c++
+enum class Color { black, white, red }; // black, white, red
+                                        // are scoped to Color
+auto white = false; // fine, no other "white" in scope
+Color c = white; // error! no enumerator named
+                 // "white" is in this scope
+Color c = Color::white; // fine
+auto c = Color::white; // also fine (and in accord
+                       // with Item 5's advice)
+```
+Scoped enums 也被称为 enum classes。  
+除了作用范围以外，unscoped enums 和 scoped enums 还有类型转换上的差距：
+```c++
+enum Color { black, white, red }; // unscoped enum
+vector<size_t> primeFactors(size_t x);
+Color c = red;
+...
+if (c < 14.5) { // compare Color to double (!)
+  auto factors = // compute prime factors
+  primeFactors(c); // of a Color (!)
+…
+}
+```
+在 unscoped enums 里面的 enumerators 是被隐式转换为整数类型的，所以上面的代码不会出错。但是 scoped enums 是没有这种隐式类型转换的：
+```c++
+enum class Color { black, white, red }; // enum is now scoped
+Color c = Color::red; // as before, but
+…                     // with scope qualifier
+if (c < 14.5) { // error! can't compare
+                // Color and double
+auto factors = // error! can't pass Color to
+primeFactors(c); // function expecting std::size_t
+…
+}
+```
+若真的想用，得用显示类型转换：
+```c++
+if (static_cast<double>(c) < 14.5) { // odd code, but
+                                     // it's valid
+  auto factors =                             // suspect, but
+  primeFactors(static_cast<std::size_t>(c)); // it compiles
+…
+}
+```
+在 C++98，是不允许 enum 提前声明(forward-declared)的，因为编译器要根据 enum 里面 enumerators 的数量来决定用什么类型来表示这个 enum，从而提高程序的**空间使用效率/运行速度**。在 C++11 中允许了 forward-declared，这是因为 C++11 默认了 enumerators 的类型。想自己修改也行：
+```c++
+enum class Status; // underlying type is int
+enum class Status: std::uint32_t; // underlying type for
+                                  // Status is std::uint32_t
+                                  // (from <cstdint>)
+enum class Status: std::uint32_t { good = 0,
+  failed = 1,
+  incomplete = 100,
+  corrupt = 200,
+  audited = 500,
+  indeterminate = 0xFFFFFFFF
+};
+
+enum Color: std::uint8_t;
+```
+
+unscoped enums 也不是一无是处，它 space leaking 的特点也具有一定的价值：
+```c++
+using UserInfo =          // type alias; see Item 9
+  std::tuple<std::string, // name
+  std::string,            // email
+  std::size_t> ;          // reputation
+UserInfo uInfo; // object of tuple type
+…
+
+auto val = std::get<1>(uInfo); // get value of field 1
+// 显然这里使用 get<1> 是想要得到 email 地址，然而这并不直观并且不易维护
+// 利用 unscoped enums 可以改变这点
+
+
+enum UserInfoFields { uiName, uiEmail, uiReputation };
+UserInfo uInfo; // as before
+…
+auto val = std::get<uiEmail>(uInfo); // ah, get value of
+                                     // email field
+```
+注意上面的代码使用了 unscoped enums 的隐式类型转换。  
+如果在这里想用使用 scoped enums 也行：
+```c++
+enum class UserInfoFields { uiName, uiEmail, uiReputation };
+UserInfo uInfo; // as before
+…
+auto val =
+  std::get<static_cast<std::size_t>(UserInfoFields::uiEmail)>
+    (uInfo);
+```
+但这显得有点繁杂，那是不是可以用一个返回 size_t 的函数代替 static_cast 呢？这是一个 tricky 的地方：std::get< > 是一个模板，尖括号里面的值需要在编译时就能知道，否则编译器不能将模板实例化，从而导致编译失败。因此我们需要一个 constexpr 函数模板，它可以返回任意类型的 enum：
+```c++
+template<typename E>
+constexpr typename std::underlying_type<E>::type
+  toUType(E enumerator) noexcept
+{
+  return
+    static_cast<typename std::underlying_type<E>::type>(enumerator);
+}
+```
+C++14 可以改成：
+```c++
+template<typename E> // C++14
+constexpr std::underlying_type_t<E>
+  toUType(E enumerator) noexcept
+{
+  return static_cast<std::underlying_type_t<E>>(enumerator);
+}
+```
+或用上 auto：
+```c++
+template<typename E> // C++14
+constexpr auto
+  toUType(E enumerator) noexcept
+{
+  return static_cast<std::underlying_type_t<E>>(enumerator);
+}
+```
+这样，获取 email 的信息可以这样用了：
+```c++
+auto val = std::get<toUType(UserInfoFields::uiEmail)>(uInfo);
+```
+
+**Things to remember**
+* C++98-style enums are now known as unscoped enums.
+* Enumerators of scoped enums are visible only within the enum. They convert
+to other types only with a cast.
+* Both scoped and unscoped enums support specification of the underlying type.
+The default underlying type for scoped enums is int. Unscoped enums have no
+default underlying type.
+* Scoped enums may always be forward-declared. Unscoped enums may be
+forward-declared only if their declaration specifies an underlying type.
