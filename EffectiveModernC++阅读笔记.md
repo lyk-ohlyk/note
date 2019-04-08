@@ -15,7 +15,7 @@
 	-[Item 7:辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
 	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
 	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
-	-[Item 10:多用 scoped enums 而不是 unscoped enums](#Item-10:多用-scoped-enums-而不是-unscoped-enums)
+	-[Item 10:多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -826,8 +826,8 @@ Color c = Color::red; // as before, but
 …                     // with scope qualifier
 if (c < 14.5) { // error! can't compare
                 // Color and double
-auto factors = // error! can't pass Color to
-primeFactors(c); // function expecting std::size_t
+  auto factors = // error! can't pass Color to
+  primeFactors(c); // function expecting std::size_t
 …
 }
 ```
