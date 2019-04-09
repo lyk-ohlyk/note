@@ -930,7 +930,7 @@ forward-declared only if their declaration specifies an underlying type.
 
 # Item 11:使用 deleted 函数而不是 private undefined 函数
 
-如果你想避免其他开发者使用某些函数，一般来说不定义这个函数就行了（这不显然么）。然而其实并没那么简单，在定义一个类时，C++ 会自定定义一些函数（在 item 17(这里到时加个链接) 中有详细介绍）。这时事情就没有那么简单了。 一个明显的例子是流的拷贝问题。在C++ 标准库中有个 basic_ios 的模板类，所有的输出、输入流都继承自这个模板类。对流的拷贝的作用并不清楚，所以要避免用户对流进行拷贝。最简单的做法是做一个空的定义，下面的代码来自 C++98（包括注释）：
+如果你想避免其他开发者使用某些函数，一般来说不定义这个函数就行了（这不显然么）。然而其实并没那么显然，在定义一个类时，C++ 会自己定义一些函数（在 item 17(这里到时加个链接) 中有详细介绍）。比如流的拷贝问题。在C++ 标准库中有个 basic_ios 的模板类，所有的输出、输入流都继承自这个模板类。对流的拷贝的作用并不清楚，所以要避免用户对流进行拷贝。最简单的做法是做一个空的定义，下面的代码来自 C++98（包括注释）：
 ```c++
 template <class charT, class traits = char_traits<charT> >
 class basic_ios : public ios_base {
@@ -1029,6 +1029,3 @@ void Widget::processPointer<void>(void*) = delete; // still public but deleted
 **Things to Remember**
 * Prefer deleted functions to private undefined ones.
 * Any function may be deleted, including non-member functions and template instantiations.
-
-
-[![996.icu](https://img.shields.io/badge/link-996.icu-red.svg)](https://996.icu)
