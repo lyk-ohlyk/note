@@ -1,7 +1,6 @@
 《Effective Modern C++》笔记。  
 仅供个人学习  
 请lyk坚持记录
-[![996.icu](https://img.shields.io/badge/link-996.icu-red.svg)](https://996.icu)
 
 * [一，Deducing Types (类型推断)](#一deducing-types-类型推断)  
 	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
@@ -16,6 +15,7 @@
 	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
 	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
 	-[Item 10:多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
+	-[Item 11:使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -814,8 +814,7 @@ vector<size_t> primeFactors(size_t x);
 Color c = red;
 ...
 if (c < 14.5) { // compare Color to double (!)
-  auto factors = // compute prime factors
-  primeFactors(c); // of a Color (!)
+  auto factors = primeFactors(c);// compute prime factors of a Color (!)
 …
 }
 ```
@@ -826,8 +825,8 @@ Color c = Color::red; // as before, but
 …                     // with scope qualifier
 if (c < 14.5) { // error! can't compare
                 // Color and double
-  auto factors = // error! can't pass Color to
-  primeFactors(c); // function expecting std::size_t
+  auto factors = primeFactors(c); // error! can't pass Color to
+                                  // function expecting std::size_t
 …
 }
 ```
@@ -835,8 +834,7 @@ if (c < 14.5) { // error! can't compare
 ```c++
 if (static_cast<double>(c) < 14.5) { // odd code, but
                                      // it's valid
-  auto factors =                             // suspect, but
-  primeFactors(static_cast<std::size_t>(c)); // it compiles
+  auto factors = primeFactors(static_cast<std::size_t>(c)); // suspect, but it compiles
 …
 }
 ```
@@ -846,7 +844,8 @@ enum class Status; // underlying type is int
 enum class Status: std::uint32_t; // underlying type for
                                   // Status is std::uint32_t
                                   // (from <cstdint>)
-enum class Status: std::uint32_t { good = 0,
+enum class Status: std::uint32_t { 
+	good = 0,
   failed = 1,
   incomplete = 100,
   corrupt = 200,
@@ -860,9 +859,10 @@ enum Color: std::uint8_t;
 unscoped enums 也不是一无是处，它 space leaking 的特点也具有一定的价值：
 ```c++
 using UserInfo =          // type alias; see Item 9
-  std::tuple<std::string, // name
-  std::string,            // email
-  std::size_t> ;          // reputation
+  std::tuple<
+    std::string, // name
+    std::string,            // email
+    std::size_t> ;          // reputation
 UserInfo uInfo; // object of tuple type
 …
 
@@ -884,17 +884,15 @@ enum class UserInfoFields { uiName, uiEmail, uiReputation };
 UserInfo uInfo; // as before
 …
 auto val =
-  std::get<static_cast<std::size_t>(UserInfoFields::uiEmail)>
-    (uInfo);
+  std::get<static_cast<std::size_t>(UserInfoFields::uiEmail)>(uInfo);
 ```
-但这显得有点繁杂，那是不是可以用一个返回 size_t 的函数代替 static_cast 呢？这是一个 tricky 的地方：std::get< > 是一个模板，尖括号里面的值需要在编译时就能知道，否则编译器不能将模板实例化，从而导致编译失败。因此我们需要一个 constexpr 函数模板，它可以返回任意类型的 enum：
+但这显得有点繁杂，那是不是可以用一个返回 size_t 的函数代替 static_cast 呢？这是一个 tricky 的地方：std::get< > 是一个模板，尖括号里面的值的类型需要在编译时就能知道，否则编译器不能将模板实例化，从而导致编译失败。因此我们需要一个 constexpr 函数模板，它可以返回任意类型的 enum：
 ```c++
 template<typename E>
 constexpr typename std::underlying_type<E>::type
   toUType(E enumerator) noexcept
 {
-  return
-    static_cast<typename std::underlying_type<E>::type>(enumerator);
+  return static_cast<typename std::underlying_type<E>::type>(enumerator);
 }
 ```
 C++14 可以改成：
@@ -929,3 +927,108 @@ The default underlying type for scoped enums is int. Unscoped enums have no
 default underlying type.
 * Scoped enums may always be forward-declared. Unscoped enums may be
 forward-declared only if their declaration specifies an underlying type.
+
+# Item 11:使用 deleted 函数而不是 private undefined 函数
+
+如果你想避免其他开发者使用某些函数，一般来说不定义这个函数就行了（这不显然么）。然而其实并没那么简单，在定义一个类时，C++ 会自定定义一些函数（在 item 17(这里到时加个链接) 中有详细介绍）。这时事情就没有那么简单了。 一个明显的例子是流的拷贝问题。在C++ 标准库中有个 basic_ios 的模板类，所有的输出、输入流都继承自这个模板类。对流的拷贝的作用并不清楚，所以要避免用户对流进行拷贝。最简单的做法是做一个空的定义，下面的代码来自 C++98（包括注释）：
+```c++
+template <class charT, class traits = char_traits<charT> >
+class basic_ios : public ios_base {
+public:
+…
+private:
+  basic_ios(const basic_ios& );           // not defined
+  basic_ios& operator=(const basic_ios&); // not defined
+};
+``` 
+但是这样的话成员函数或是友元都有权限使用 private 里面的函数。C++11 有更好的做法—— deleted functions:
+```c++
+template <class charT, class traits = char_traits<charT> >
+class basic_ios : public ios_base {
+public:
+…
+  basic_ios(const basic_ios& ) = delete;
+  basic_ios& operator=(const basic_ios&) = delete;
+…
+};
+```
+使用 delete 会让你在编译前就知道对这些函数的调用是不合法的，而若是友元等访问未定义的 private 函数，会在编译时才能知道。  
+有个小细节，deleted functions 是定义在 public 里的，原因是 C++ 会先检查函数的可访问性（accessibility），然后才检查函数的删除属性（deleted status）。如果放在 private 里面，C++ 可能只会说函数在 private 不能访问，而不是说该函数不能使用。因此，将代码的 private-and-not-defined 成员改成 public deleted 成员有益于改进 error 信息。  
+
+另外，deleted functions 可以用在其他的非成员函数上，如我们定义一个函数：
+```c++
+bool isLucky(int number);
+```
+有这么一些对它的调用：
+```c++
+if (isLucky('a')) … // is 'a' a lucky number?
+if (isLucky(true)) … // is "true"?
+if (isLucky(3.5)) … // should we truncate to 3
+                    // before checking for luckiness?
+```
+如果我们想保证函数的输入只有整数的，可以使用 deleted function 来避免使用类型转换的合法类型：
+```c++
+bool isLucky(int number); // original function
+bool isLucky(char) = delete; // reject chars
+bool isLucky(bool) = delete; // reject bools
+bool isLucky(double) = delete; // reject doubles and floats
+```
+
+deleted functions 还能避免模板函数的不合适的实例化。比如我们有一个作用于内置指针的模板：
+```c++
+template<typename T>
+void processPointer(T* ptr);
+```
+在 C++ 中，有两类特殊的指针。一类是 void* 指针，因为它们不能被解引用或自增、自减；另一类是 char* 指针，因为它们指向的是 C 风格的字符串，而不是单个的 char。想避免使用这些指针类型的调用，可以用 deleted functions：
+```C++
+template<>
+void processPointer<void>(void*) = delete;
+
+template<>
+void processPointer<char>(char*) = delete;
+```
+另外，使用 const void* 和 const char* 的调用也应该被避免：
+```c++
+template<>
+void processPointer<const void>(const void*) = delete;
+
+template<>
+void processPointer<const char>(const char*) = delete;
+```
+如果还想彻底点，还有 const volatile void* 和 const volatile char* ，然而暂时不懂 volatile（划掉）。  
+
+如果是在类里使用模板，像下面的代码是不会编译的：
+```c++
+class Widget {
+public:
+…
+  template<typename T>
+  void processPointer(T* ptr)
+  { … }
+private:
+  template<> // error!
+  void processPointer<void>(void*);
+};
+```
+其原因是对模板的特殊规定只能在命名空间（namespace scope）里写，而不能在类空间(class scope)。下面的代码可以实现上面代码的效果：
+```c++
+class Widget {
+public:
+  …
+  template<typename T>
+  void processPointer(T* ptr)
+  { … }
+  …
+};
+template<> 
+void Widget::processPointer<void>(void*) = delete; // still public but deleted
+```
+
+总结一下，C++98 的 private-and-not-defined 成员实现的就是 C++11 中 deleted functions 实现的效果，但它在类外不能用，在类内不一定能用，就算能用了也要等到链接（link-time）时才能起作用。所以坚持使用 deleted functions 吧。  
+
+**Things to Remember**
+* Prefer deleted functions to private undefined ones.
+* Any function may be deleted, including non-member functions and template instantiations.
+
+
+[![996.icu](https://img.shields.io/badge/link-996.icu-red.svg)](https://996.icu)
