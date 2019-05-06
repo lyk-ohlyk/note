@@ -15,7 +15,8 @@
 	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
 	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
 	-[Item 10:多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
-	-[Item 11:使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)
+	-[Item 11:使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)  
+	-[Item 12:将重写的函数声明为 override](#item-12将重写的函数声明为-override)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -1029,3 +1030,115 @@ void Widget::processPointer<void>(void*) = delete; // still public but deleted
 **Things to Remember**
 * Prefer deleted functions to private undefined ones.
 * Any function may be deleted, including non-member functions and template instantiations.
+
+# Item 12:将重写的函数声明为 override
+虚函数是 C++ 的类的一个工具。你可以在基类（base class）中定义或声明虚函数，并在派生类（derived classed）中重写（override）这个虚函数。然而何时该调用 overrided 的虚函数并不显然。先看下面这个例子：
+
+```C++
+class Base {
+public:
+	virtual void doWork(); // base class virtual function
+…
+};
+class Derived: public Base {
+public:
+	virtual void doWork(); // overrides Base::doWork ,"virtual" is optional here
+  … 
+};
+// create base class pointer to derived class object;
+// see Item 21 for info on std::make_unique
+std::unique_ptr<Base> upb = std::make_unique<Derived>(); 
+… 
+upb->doWork(); // call doWork through base class ptr; derived class function is invoked
+```
+上面这个例子，就是通过了一个基类的接口，调用了派生类的函数。  
+重写（Overring）的发生有以下几个必要要求：
+* 基类函数必须是**虚函数（virtual）**
+* 基类与派生类的该函数（下称基派函）**同名**（除了析构函数）
+* 基派函**参数一致**
+* 基派函**const 性（constness）一致**
+* 基派函**返回类型与 exception specifications 兼容（compatible)**
+C++11 还加了一点：
+* 基派函**引用限定符（reference qualifiers）一致**
+
+成员函数的引用限定符可以用来保证函数只被用于左值或右值，如：
+```C++
+class Widget {
+public:
+…
+ void doWork() &; // this version of doWork applies only when *this is an lvalue
+ void doWork() &&; // this version of doWork applies only when *this is an rvalue
+};                 
+…
+Widget makeWidget(); // factory function (returns rvalue)
+Widget w; // normal object (an lvalue)
+…
+w.doWork(); // calls Widget::doWork for lvalues (i.e., Widget::doWork &)
+makeWidget().doWork(); // calls Widget::doWork for rvalues (i.e., Widget::doWork &&)
+```
+
+由重写引起的错误并不会被编译器发现，因为它是往往合法的，只是没有按你的原目的进行。如下面的代码，就完全没有任何重写：
+```c++
+class Base {
+public:
+  virtual void mf1() const;
+  virtual void mf2(int x);
+  virtual void mf3() &;
+  void mf4() const;
+};
+class Derived: public Base {
+public:
+  virtual void mf1();               // 没 const
+  virtual void mf2(unsigned int x); // 多了 unsigned
+  virtual void mf3() &&;            // & &&
+  void mf4() const;                 // base 不是 virtual
+};
+```
+C++11 给出了避免上面这种情况的方案：把要重写的函数声明为 override：
+```C++
+class Derived: public Base {
+public:
+	virtual void mf1() override;
+	virtual void mf2(unsigned int x) override;
+	virtual void mf3() && override;
+	virtual void mf4() const override;
+};
+```
+这样，上面的代码就会因为重写失败而产生错误。
+
+在 C++98 中也有 override：
+```C++
+class Warning { // potential legacy class from C++98
+public:
+…
+void override(); // legal in both C++98 and C++11
+…                // (with the same meaning)
+};
+```
+所以如果看见老代码用了 override 函数并不用改。  
+接下来补充一下引用限定符（reference qualifiers）的内容。假设有个Widget：
+```c++
+class Widget {
+public:
+	using DataType = std::vector<double>; // see Item 9 for
+	…                                     // info on "using"
+	DataType& data() & { return values; }
+	DataType data() && { return std::move(values); }// for rvalue Widgets, return rvalue
+	…
+	private:
+	DataType values;
+};
+
+// 给出两种调用
+Widget w;
+…
+auto vals1 = w.data(); // copy w.values into vals1
+
+Widget makeWidget();
+auto vals2 = makeWidget().data();
+```
+这样，vals1 和 vals2 调用的是不同的 data() 函数。这就是 接受右值的函数定义 的作用。
+
+**Things to Remember**
+* Declare overriding functions override.
+* Member function reference qualifiers make it possible to treat lvalue and rvalue objects (\***this**) differently.
