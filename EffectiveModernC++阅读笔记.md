@@ -9,14 +9,14 @@
 	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
 * [二，Auto](#二auto)  
 	-[Item 5: 多用 auto 替换显示类型声明](#Item-5多用auto替换显式类型声明)  
-	-[Item 6:用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
+	-[Item 6: 用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
 * [三，Moving to Modern C++](#三moving-to-modern-c)  
-	-[Item 7:辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
-	-[Item 8:多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
-	-[Item 9:多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
-	-[Item 10:多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
-	-[Item 11:使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)  
-	-[Item 12:将重写的函数声明为 override](#item-12将重写的函数声明为-override)
+	-[Item 7: 辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
+	-[Item 8: 多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
+	-[Item 9: 多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
+	-[Item 10: 多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
+	-[Item 11: 使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)  
+	-[Item 12: 将重写的函数声明为 override](#item-12将重写的函数声明为-override)
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
@@ -1057,8 +1057,8 @@ upb->doWork(); // call doWork through base class ptr; derived class function is 
 * 基类与派生类的该函数（下称基派函）**同名**（除了析构函数）
 * 基派函**参数一致**
 * 基派函**const 性（constness）一致**
-* 基派函**返回类型与 exception specifications 兼容（compatible)**
-C++11 还加了一点：
+* 基派函**返回类型与 exception specifications 兼容（compatible)**  
+C++11 还加了一点：  
 * 基派函**引用限定符（reference qualifiers）一致**
 
 成员函数的引用限定符可以用来保证函数只被用于左值或右值，如：
