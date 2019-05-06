@@ -1058,6 +1058,7 @@ upb->doWork(); // call doWork through base class ptr; derived class function is 
 * 基派函**参数一致**
 * 基派函**const 性（constness）一致**
 * 基派函**返回类型与 exception specifications 兼容（compatible)**  
+
 C++11 还加了一点：  
 * 基派函**引用限定符（reference qualifiers）一致**
 
