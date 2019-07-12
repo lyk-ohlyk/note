@@ -36,6 +36,7 @@ template<typename T>
 void f(T& param);
 ```
 ```c++
+void f(T& param);
 f(x); // T is int, param's type is int&
 f(cx); // T is const int,
        // param's type is const int&
@@ -45,6 +46,7 @@ f(rx); // T is const int,
 
 ParamType 为 const T&
 ```c++
+void f(const T& param);
 f(x);  // T is int, param's type is const int&
 f(cx); // T is int, param's type is const int&
 f(rx); // T is int, param's type is const int&
@@ -52,6 +54,7 @@ f(rx); // T is int, param's type is const int&
 
 ParamType 为右值引用 T&&，
 ```C++
+void f(T&& param);
 f(x); // x is lvalue, so T is int&,
       // param's type is also int&
 f(cx); // cx is lvalue, so T is const int&,
@@ -72,6 +75,7 @@ f(27); // 27 is rvalue, so T is int,
 
 ParamType 是值，T
 ```c++
+void f(T param);
 f(x);  // T's and param's types are both int
 f(cx); // T's and param's types are again both int
 f(rx); // T's and param's types are still both int
