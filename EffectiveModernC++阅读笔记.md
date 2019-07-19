@@ -2,25 +2,13 @@
 仅供个人学习  
 请lyk坚持记录
 
-* [一，Deducing Types (类型推断)](#一deducing-types-类型推断)  
-	-[Item 1: 理解模板类型推断](#item-1理解模板类型推断)  
-	-[Item 2: auto 语句中的类型推断](#item-2auto语句中的类型推断)  
-	-[Item 3: 理解 decltype](#item-3理解decltype)  
-	-[Item 4: 如何观测实际的类型推断](#Item-4如何观测实际的类型推断)
-* [二，Auto](#二auto)  
-	-[Item 5: 多用 auto 替换显示类型声明](#Item-5多用auto替换显式类型声明)  
-	-[Item 6: 用显示类型声明来避免 auto 的不合适推断](#Item-6用显示类型声明来避免-auto-的不合适推断)  
-* [三，Moving to Modern C++](#三moving-to-modern-c)  
-	-[Item 7: 辨别生成对象时 () 和 {} 的不同](#item-7辨别生成对象时和的不同)  
-	-[Item 8: 多用 nullptr 代替 0 和 null](#item-8多用-nullptr-代替-0-和-null)  
-	-[Item 9: 多用别名定义而不是 typedefs](#item-9多用-alias-declarations-而不是-typedefs)  
-	-[Item 10: 多用 scoped enums 而不是 unscoped enums](#item-10多用-scoped-enums-而不是-unscoped-enums)  
-	-[Item 11: 使用 deleted 函数而不是 private undefined 函数](#item-11使用-deleted-函数而不是-private-undefined-函数)  
-	-[Item 12: 将重写的函数声明为 override](#item-12将重写的函数声明为-override)
+[TOC]
 
 # 一，Deducing Types (类型推断)
 ## Item 1:理解模板类型推断
+
 **模板函数声明中的类型**
+
 ```c++
 template<typename T>
 void f(ParamType param);
@@ -791,7 +779,8 @@ using add_lvalue_reference_t = typename add_lvalue_reference<T>::type;
 prefix often required to refer to typedefs.
 * C++14 offers alias templates for all the C++11 type traits transformations.
 
-# Item 10:多用 scoped enums 而不是 unscoped enums
+## Item 10:多用 scoped enums 而不是 unscoped enums
+
 在 C++98 有 enum 类型，它的用法是这样的：
 ```c++
 enum Color { black, white, red };
@@ -933,7 +922,7 @@ default underlying type.
 * Scoped enums may always be forward-declared. Unscoped enums may be
 forward-declared only if their declaration specifies an underlying type.
 
-# Item 11:使用 deleted 函数而不是 private undefined 函数
+## Item 11:使用 deleted 函数而不是 private undefined 函数
 
 如果你想避免其他开发者使用某些函数，一般来说不定义这个函数就行了（这不显然么）。然而其实并没那么显然，在定义一个类时，C++ 会自己定义一些函数（在 item 17(这里到时加个链接) 中有详细介绍）。比如流的拷贝问题。在C++ 标准库中有个 basic_ios 的模板类，所有的输出、输入流都继承自这个模板类。对流的拷贝的作用并不清楚，所以要避免用户对流进行拷贝。最简单的做法是做一个空的定义，下面的代码来自 C++98（包括注释）：
 ```c++
@@ -945,7 +934,7 @@ private:
   basic_ios(const basic_ios& );           // not defined
   basic_ios& operator=(const basic_ios&); // not defined
 };
-``` 
+```
 但是这样的话成员函数或是友元都有权限使用 private 里面的函数。C++11 有更好的做法—— deleted functions:
 ```c++
 template <class charT, class traits = char_traits<charT> >
@@ -1035,7 +1024,8 @@ void Widget::processPointer<void>(void*) = delete; // still public but deleted
 * Prefer deleted functions to private undefined ones.
 * Any function may be deleted, including non-member functions and template instantiations.
 
-# Item 12:将重写的函数声明为 override
+## Item 12:将重写的函数声明为 override
+
 虚函数是 C++ 的类的一个工具。你可以在基类（base class）中定义或声明虚函数，并在派生类（derived classed）中重写（override）这个虚函数。然而何时该调用 overrided 的虚函数并不显然。先看下面这个例子：
 
 ```C++
